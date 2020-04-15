@@ -1,0 +1,7 @@
+{
+    "output": ".\\binMaster",
+    "sketch": "appMaster.ino",
+    "board": "arduino:avr:uno",
+    "port": "COM1",
+    "programmer": "AVR ISP"    
+}
