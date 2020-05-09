@@ -16,11 +16,26 @@
   },
   {
     "Sourcefile": "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\binMaster\\sketch\\appMaster.ino.cpp",
+    "Include": "Wire.h",
+    "Includepath": "C:\\Program Files (x86)\\Arduino\\libraries\\Wire\\src"
+  },
+  {
+    "Sourcefile": "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\binMaster\\sketch\\appMaster.ino.cpp",
     "Include": "",
     "Includepath": null
   },
   {
     "Sourcefile": "C:\\Program Files (x86)\\Arduino\\libraries\\LiquidCrystal\\src\\LiquidCrystal.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "C:\\Program Files (x86)\\Arduino\\libraries\\Wire\\src\\Wire.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "C:\\Program Files (x86)\\Arduino\\libraries\\Wire\\src\\utility\\twi.c",
     "Include": "",
     "Includepath": null
   }

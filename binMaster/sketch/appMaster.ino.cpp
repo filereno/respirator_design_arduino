@@ -1,9 +1,9 @@
 #include <Arduino.h>
 #line 1 "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\appMaster.ino"
 #include <LiquidCrystal.h>
+#include "Wire.h"
 //------------------------------pins--------------------------------------------------------------
-int startstop = 5, pinControlPress =A0, pinControlAliv =A1, pinValvPress =12, pinValvAliv =13, 
-motorA = 7, motorB = 6;
+int startstop = 5, pinControlPress =A0, pinControlAliv =A1, pinValvPress =12, pinValvAliv =13;
 //-------------------------------variables--------------------------------------------------------
 int nPotPress = 0, nPotAliv = 0, difPotPress = 0, difPotAliv = 0, cacheTimePress = 0, 
 cacheTimeAliv = 0, statusStartStop, countTwoHundred, count=0;
@@ -11,38 +11,20 @@ cacheTimeAliv = 0, statusStartStop, countTwoHundred, count=0;
 boolean checkB = false;
 //--------------------------------display---------------------------------------------------------
 LiquidCrystal lcd(3, 2, 8, 9, 10, 11);
+//----------------------------------pin com i2c---------------------------------------------------
+#define slaveAdress 0x08
 //------------------------------------------------------------------------------------------------
 
-// int timeCount(int x)
-// {
-//     int t, x1;
-//     x1 = x;
-//     t= (8 * x1)/1023 + 2;
-//     return t;
-// }
-
-// void confFunc(int x, int y)
-// {
-//     if (y == 1)
-//     {
-//         cacheTimePress = timeCount(x);
-//     }
-//     else if (y == 0)
-//     {
-//         cacheTimeAliv = timeCount(x);
-//     }
-// }
-
 // configuraçao do lcd
-#line 35 "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\appMaster.ino"
+#line 17 "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\appMaster.ino"
 void lcdConf(int x, int y);
-#line 109 "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\appMaster.ino"
+#line 91 "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\appMaster.ino"
 void setup();
-#line 137 "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\appMaster.ino"
+#line 120 "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\appMaster.ino"
 void resetCicle();
-#line 146 "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\appMaster.ino"
+#line 130 "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\appMaster.ino"
 void loop();
-#line 35 "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\appMaster.ino"
+#line 17 "c:\\Users\\fabiano\\Documents\\GitHub\\firmware_respirador_arduino\\appMaster.ino"
 void lcdConf(int x, int y)
 {
     if (y == 1)
@@ -114,7 +96,7 @@ boolean Thread::posDelay()
     return (temp() == true) ? refresh(): false;
 }
 //-----------------------------------------------------
-Thread *ledPressThread, *ledAlivThread, *timeFiveHundredThread, *timeTwoHundredThreadA, 
+Thread *ledPressThread, *ledAlivThread, *timeFiveHundredThreadA, *timeFiveHundredThreadB, *timeTwoHundredThreadA, 
 *timeTwoHundredThreadB, *confThread, *lcdThread;
 
 void setup()
@@ -124,19 +106,20 @@ void setup()
   	lcd.setCursor(0, 1);
   	lcd.print("Alivio:");
   
-    pinMode(motorA, OUTPUT);
-    pinMode(motorB, OUTPUT);
     pinMode(pinControlPress, INPUT);
     pinMode(pinControlAliv, INPUT);
     pinMode(pinValvPress, OUTPUT);
     pinMode(pinValvAliv, OUTPUT);
     pinMode(startstop, INPUT_PULLUP);
-    // startMillis = millis();  //initial start time
+  
     statusStartStop = LOW;
+
+    Wire.begin(); // ingressa ao barramento I2C
 
     ledPressThread = new Thread(1000);
     ledAlivThread = new Thread(1000);
-    timeFiveHundredThread = new Thread(250);
+    timeFiveHundredThreadA = new Thread(250);
+    timeFiveHundredThreadB = new Thread(250);
     timeTwoHundredThreadA = new Thread(100);
     timeTwoHundredThreadB = new Thread(100);
     confThread = new Thread(10);
@@ -149,7 +132,8 @@ void resetCicle()
 {
     ledPressThread = new Thread(1000);
     ledAlivThread = new Thread(1000);
-    timeFiveHundredThread = new Thread(250);
+    timeFiveHundredThreadA = new Thread(250);
+    timeFiveHundredThreadB = new Thread(250);
     timeTwoHundredThreadA = new Thread(100);
     timeTwoHundredThreadB = new Thread(100);
 }
@@ -163,10 +147,8 @@ void loop()
     // control pussh button    
     if (digitalRead(startstop) == LOW && checkB == false)
     {
-        
         statusStartStop = !statusStartStop;
-        checkB = true;
-        digitalWrite(13, statusStartStop);
+        checkB = true;   
     }
     else if (digitalRead(startstop) == HIGH && checkB == true)
     {
@@ -194,93 +176,106 @@ void loop()
         difPotAliv = nPotAliv;
     } 
 
-    // thread controler display
-    // if (lcdThread ->posDelay())
-    // {
-    //     Serial.print("teste ");
-    //     if (nPotPress != difPotPress)
-    //     {
-    //         Serial.print("teste1 ");
-    //         lcdConf(cacheTimePress, 1);
-    //     }
-    //     else if (nPotAliv != difPotAliv)
-    //     {
-    //         Serial.print("teste2 ");
-    //         lcdConf(cacheTimeAliv, 0);
-    //     }    
-    // }
-
     if (statusStartStop == HIGH && cacheTimePress > 0 && cacheTimeAliv > 0)
     {
 
-        // contador de pressurização
-        if (ledPressThread->posDelay() && ledPressThread)
+        if (timeFiveHundredThreadA)
+        {
+            Serial.print("abre ");
+            digitalWrite(pinValvPress, HIGH);//Abre a valvula de pressurização ## 11111111
+        }
+
+        // delay de 500ms ## 222222222
+        if (timeFiveHundredThreadA->posDelay() && timeFiveHundredThreadA)
+        {   
+            count = count +  1;
+        }        
+        else if (count == 2 && timeFiveHundredThreadA)
+        {
+            Wire.beginTransmission(slaveAdress);// inicia a transmissao
+            Wire.write(2); // envia um byte contendo o estado do MOTOR
+            Wire.endTransmission(); // encerra a transmissao
+            Serial.print("500 ");
+            count =0;
+            delete timeFiveHundredThreadA;
+            timeFiveHundredThreadA =NULL;
+        }
+
+        // contador de pressurização ## 33333333333
+        if (ledPressThread->posDelay() && ledPressThread && !timeFiveHundredThreadA)
         {  
-            digitalWrite(pinValvPress, HIGH);//inicia pressurização
             count = count +  1; 
         }        
-        else if (count == cacheTimePress && ledPressThread)
+        else if (count == cacheTimePress && ledPressThread && !timeFiveHundredThreadA)
         {
+            Wire.beginTransmission(slaveAdress);// inicia a transmissao
+            Wire.write(0); // envia um byte contendo o estado do MOTOR
+            Wire.endTransmission(); // encerra a transmissao
+            Serial.print("press: ");
             Serial.print(count);
             count =0;
             delete ledPressThread;
             ledPressThread =NULL;
         }
 
-        // delay de 500ms
-        if (timeFiveHundredThread->posDelay() && timeFiveHundredThread && !ledPressThread)
+        // delay de 500ms ## 444444444444
+        if (timeFiveHundredThreadB->posDelay() && timeFiveHundredThreadB && !ledPressThread)
         {   
             count = count +  1;
         }        
-        else if (count == 2 && timeFiveHundredThread && !ledPressThread)
+        else if (count == 2 && timeFiveHundredThreadB && !ledPressThread)
         {
-            digitalWrite(pinValvPress, LOW); //fecha valvula de pressao
-            Serial.print(count);
+            digitalWrite(pinValvPress, LOW); //fecha valvula de pressao ## 5555555555
+            Serial.print(" 500 ");
+            Serial.print(" fecha ");
             count =0;
-            delete timeFiveHundredThread;
-            timeFiveHundredThread =NULL;
-        }
+            delete timeFiveHundredThreadB;
+            timeFiveHundredThreadB =NULL;
+        }    
 
-        // contador de 200ms
-        if (timeTwoHundredThreadA -> posDelay() && timeTwoHundredThreadA && !timeFiveHundredThread)
+        // contador de 200ms ## 66666666666
+        if (timeTwoHundredThreadA -> posDelay() && timeTwoHundredThreadA && !timeFiveHundredThreadB)
         {   
             count = count +  1;
         }        
-        else if (count == 2 && timeTwoHundredThreadA && !timeFiveHundredThread)
+        else if (count == 2 && timeTwoHundredThreadA && !timeFiveHundredThreadB)
         {
-            Serial.print(count);
+            digitalWrite(pinValvAliv, HIGH);//abrir valvula de alivio ## 777777777 
+            Serial.print(" 200 ");
+            Serial.print("abre ");
             count =0;
             delete timeTwoHundredThreadA;
             timeTwoHundredThreadA =NULL;
         }
 
-        // contador de alivio
+        // contador de alivio ## 8888888888
         if (ledAlivThread -> posDelay() && ledAlivThread && !timeTwoHundredThreadA)
         {   
-            digitalWrite(pinValvAliv, HIGH);//abrir valvula de alivio
             count = count +  1;
         }        
         else if (count == cacheTimeAliv && ledAlivThread && !timeTwoHundredThreadA)
         {
+            digitalWrite(pinValvAliv, LOW);//fecha valvula de alivio ## 999999999
+            Serial.print("alivio: ");
             Serial.print(count);
             count =0;
             delete ledAlivThread;
             ledAlivThread =NULL;
         }
 
-        // contador de 200ms
+        // contador de 200ms ## 10 10 10 10 10
         if (timeTwoHundredThreadB -> posDelay() && timeTwoHundredThreadB && !ledAlivThread)
         {   
             count = count +  1;
         }        
         else if (count == 2 && timeTwoHundredThreadB && !ledAlivThread)
         {
-            digitalWrite(pinValvAliv, LOW);//fecha valvula de alivio
-            Serial.print(count);
+           
+            Serial.print(" 200 ");
             count =0;
             delete timeTwoHundredThreadB;
             timeTwoHundredThreadB =NULL;
-            resetCicle(); //reinicia o ciclo
+            resetCicle(); //reinicia o processo ## 11 11 11 11 11 11
         }    
     }
 ///////////////////////////////////////////////////////////////////////////////////

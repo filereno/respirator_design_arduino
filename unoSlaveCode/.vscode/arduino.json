@@ -1,0 +1,6 @@
+{
+    "output": ".\\binSlave",
+    "sketch": "appSlave.ino",
+    "board": "arduino:avr:nano",
+    "configuration": "cpu=atmega328"
+}
